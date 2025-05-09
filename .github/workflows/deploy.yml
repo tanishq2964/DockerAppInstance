@@ -1,0 +1,30 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up SSH
+      run: |
+        mkdir -p ~/.ssh
+        echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+        ssh-keyscan -H 13.51.165.121 >> ~/.ssh/known_hosts
+
+    - name: Deploy on EC2
+      run: |
+        ssh ec2-user@<your-ec2-ip> << 'EOF'
+          cd DockerApp
+          git pull origin master
+          docker build -t dockerapp .
+          docker stop $(docker ps -q) || true
+          docker run -d -p 8080:8080 dockerapp
+        EOF
